@@ -283,6 +283,69 @@ function App() {
     setPlayers(players.filter(p => p.id !== playerId));
   };
 
+  const exportToCSV = () => {
+    const ratingValues: { [key: string]: number } = {
+      'A': 4,
+      'B': 3,
+      'C': 2,
+      'D': 1
+    };
+
+    // Create CSV header
+    let csv = 'Team,Player Name,Rating,Rating Value,Captain\n';
+
+    // Add team data
+    teams.forEach(team => {
+      if (team.players.length === 0) {
+        csv += `${team.name},(empty),,,,\n`;
+      } else {
+        team.players.forEach(player => {
+          const isCaptain = team.lockedPlayers.has(player.id) ? 'Yes' : 'No';
+          csv += `${team.name},${player.name},${player.rating},${ratingValues[player.rating]},${isCaptain}\n`;
+        });
+      }
+    });
+
+    // Add summary section
+    csv += '\n\nTeam Summary\n';
+    csv += 'Team,Player Count,Average Rating,Captain Count\n';
+
+    teams.forEach(team => {
+      const playerCount = team.players.length;
+      const avgRating = playerCount > 0
+        ? (team.players.reduce((sum, p) => sum + ratingValues[p.rating], 0) / playerCount).toFixed(2)
+        : '0';
+      const captainCount = team.players.filter(p => team.lockedPlayers.has(p.id)).length;
+      csv += `${team.name},${playerCount},${avgRating},${captainCount}\n`;
+    });
+
+    // Add unassigned players section
+    const unassignedPlayers = getUnassignedPlayers();
+    if (unassignedPlayers.length > 0) {
+      csv += '\n\nUnassigned Players\n';
+      csv += 'Player Name,Rating,Rating Value\n';
+      unassignedPlayers.forEach(player => {
+        csv += `${player.name},${player.rating},${ratingValues[player.rating]}\n`;
+      });
+    }
+
+    // Create blob and download
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    const date = new Date();
+    const timestamp = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    const filename = `golf-teams-${timestamp}.csv`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="container">
       <h1>Golf Team Maker</h1>
@@ -322,7 +385,12 @@ function App() {
         </div>
 
         <div className="teams-section">
-          <h2>Teams</h2>
+          <div className="teams-header">
+            <h2>Teams</h2>
+            <button className="btn btn-export" onClick={exportToCSV}>
+              📊 Export to Excel
+            </button>
+          </div>
           <div className="teams-grid">
             {teams.map(team => (
               <TeamBox
