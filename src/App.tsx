@@ -36,7 +36,13 @@ function App() {
     }
 
     if (savedTeams) {
-      setTeams(JSON.parse(savedTeams));
+      const parsedTeams = JSON.parse(savedTeams);
+      // Convert lockedPlayers arrays back to Sets
+      const teamsWithSets = parsedTeams.map((team: any) => ({
+        ...team,
+        lockedPlayers: new Set(team.lockedPlayers || [])
+      }));
+      setTeams(teamsWithSets);
     } else {
       initializeTeams();
     }
@@ -50,7 +56,12 @@ function App() {
 
   useEffect(() => {
     if (teams.length > 0) {
-      localStorage.setItem('golfTeams', JSON.stringify(teams));
+      // Convert Sets to arrays for localStorage
+      const teamsForStorage = teams.map(team => ({
+        ...team,
+        lockedPlayers: Array.from(team.lockedPlayers)
+      }));
+      localStorage.setItem('golfTeams', JSON.stringify(teamsForStorage));
     }
   }, [teams]);
 
@@ -60,7 +71,8 @@ function App() {
       newTeams.push({
         id: `team-${i}`,
         name: `Team ${i}`,
-        players: []
+        players: [],
+        lockedPlayers: new Set<string>()
       });
     }
     setTeams(newTeams);
@@ -100,6 +112,14 @@ function App() {
   };
 
   const handleDragStart = (e: React.DragEvent, player: Player, sourceTeamId: string | null) => {
+    // Check if player is locked
+    if (sourceTeamId) {
+      const sourceTeam = teams.find(t => t.id === sourceTeamId);
+      if (sourceTeam?.lockedPlayers.has(player.id)) {
+        e.preventDefault();
+        return;
+      }
+    }
     setDraggedItem({ player, sourceTeamId });
     e.dataTransfer.effectAllowed = 'move';
   };
@@ -167,23 +187,47 @@ function App() {
   };
 
   const randomizeTeams = () => {
-    const shuffledPlayers = [...players].sort(() => Math.random() - 0.5);
-    const newTeams: Team[] = [];
+    // Keep locked players in their teams
+    const newTeams: Team[] = teams.map(team => ({
+      ...team,
+      players: team.players.filter(p => team.lockedPlayers.has(p.id))
+    }));
 
-    for (let i = 1; i <= 8; i++) {
-      newTeams.push({
-        id: `team-${i}`,
-        name: `Team ${i}`,
-        players: []
-      });
-    }
+    // Get all unlocked players (including those currently in teams)
+    const unlockedPlayers: Player[] = [];
 
-    shuffledPlayers.forEach((player, index) => {
-      const teamIndex = index % 8;
-      if (newTeams[teamIndex].players.length < 4) {
-        newTeams[teamIndex].players.push(player);
+    // Add unassigned players
+    const assignedPlayerIds = new Set(
+      teams.flatMap(team => team.players.map(p => p.id))
+    );
+    players.forEach(player => {
+      if (!assignedPlayerIds.has(player.id)) {
+        unlockedPlayers.push(player);
       }
     });
+
+    // Add unlocked players from teams
+    teams.forEach(team => {
+      team.players.forEach(player => {
+        if (!team.lockedPlayers.has(player.id)) {
+          unlockedPlayers.push(player);
+        }
+      });
+    });
+
+    // Shuffle unlocked players
+    const shuffledPlayers = unlockedPlayers.sort(() => Math.random() - 0.5);
+
+    // Distribute shuffled players to teams
+    let playerIndex = 0;
+    for (let round = 0; round < 4; round++) {
+      for (let teamIndex = 0; teamIndex < 8; teamIndex++) {
+        if (newTeams[teamIndex].players.length < 4 && playerIndex < shuffledPlayers.length) {
+          newTeams[teamIndex].players.push(shuffledPlayers[playerIndex]);
+          playerIndex++;
+        }
+      }
+    }
 
     setTeams(newTeams);
   };
@@ -195,9 +239,27 @@ function App() {
   const clearAllTeams = () => {
     const clearedTeams = teams.map(team => ({
       ...team,
-      players: []
+      players: [],
+      lockedPlayers: new Set<string>()
     }));
     setTeams(clearedTeams);
+  };
+
+  const togglePlayerLock = (teamId: string, playerId: string) => {
+    setTeams(prevTeams =>
+      prevTeams.map(team => {
+        if (team.id === teamId) {
+          const newLockedPlayers = new Set(team.lockedPlayers);
+          if (newLockedPlayers.has(playerId)) {
+            newLockedPlayers.delete(playerId);
+          } else {
+            newLockedPlayers.add(playerId);
+          }
+          return { ...team, lockedPlayers: newLockedPlayers };
+        }
+        return team;
+      })
+    );
   };
 
   const handleAddPlayer = (name: string, rating: Rating) => {
@@ -269,6 +331,7 @@ function App() {
                 onDrop={handleDrop}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onToggleLock={togglePlayerLock}
               />
             ))}
           </div>

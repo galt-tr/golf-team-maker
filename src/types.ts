@@ -10,6 +10,7 @@ export interface Team {
   id: string;
   name: string;
   players: Player[];
+  lockedPlayers: Set<string>; // Set of player IDs that are locked to this team
 }
 
 export interface DragItem {

@@ -224,6 +224,7 @@ h1 {
   border: 1px solid #dee2e6;
   padding: 8px;
   font-size: 14px;
+  width: 100%;
 }
 
 .empty-slot {
@@ -460,4 +461,58 @@ h1 {
   background: #f8f9fa;
   border: 2px dashed #dee2e6;
   border-radius: 10px;
+}
+
+/* Lock functionality styles */
+.player-card-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.player-card-wrapper .player-card {
+  flex: 1;
+  width: 100%;
+}
+
+.player-card-wrapper.locked .player-card {
+  background: linear-gradient(45deg, #fff3cd 0%, #f8f9fa 100%);
+  border-color: #ffc107;
+  cursor: not-allowed;
+}
+
+.player-card-wrapper.locked .player-card::before {
+  content: '👑';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  font-size: 20px;
+  z-index: 1;
+}
+
+.lock-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+}
+
+.lock-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: scale(1.2);
+}
+
+.player-card-wrapper.locked .lock-btn {
+  filter: drop-shadow(0 0 4px gold);
 }

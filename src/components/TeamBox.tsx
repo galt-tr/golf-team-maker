@@ -7,13 +7,15 @@ interface TeamBoxProps {
   onDrop: (e: React.DragEvent, teamId: string | null) => void;
   onDragStart: (e: React.DragEvent, player: Player, sourceTeamId: string | null) => void;
   onDragEnd: (e: React.DragEvent) => void;
+  onToggleLock: (teamId: string, playerId: string) => void;
 }
 
 const TeamBox: React.FC<TeamBoxProps> = ({
   team,
   onDrop,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  onToggleLock
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -66,16 +68,27 @@ const TeamBox: React.FC<TeamBoxProps> = ({
         <span className="team-strength">Avg: {calculateTeamStrength()}</span>
       </div>
       <div className="team-players">
-        {team.players.map((player) => (
-          <PlayerCard
-            key={player.id}
-            player={player}
-            isEditable={false}
-            sourceTeamId={team.id}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
-        ))}
+        {team.players.map((player) => {
+          const isLocked = team.lockedPlayers.has(player.id);
+          return (
+            <div key={player.id} className={`player-card-wrapper ${isLocked ? 'locked' : ''}`}>
+              <PlayerCard
+                player={player}
+                isEditable={false}
+                sourceTeamId={team.id}
+                onDragStart={onDragStart}
+                onDragEnd={onDragEnd}
+              />
+              <button
+                className="lock-btn"
+                onClick={() => onToggleLock(team.id, player.id)}
+                title={isLocked ? "Unlock player" : "Lock player"}
+              >
+                {isLocked ? '🔒' : '🔓'}
+              </button>
+            </div>
+          );
+        })}
         {[...Array(4 - team.players.length)].map((_, index) => (
           <div key={`empty-${index}`} className="empty-slot">
             Drop player here
