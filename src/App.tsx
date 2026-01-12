@@ -287,6 +287,179 @@ function App() {
     setIsEditMode(!isEditMode);
   };
 
+  const balanceTeams = () => {
+    const ratingValues: { [key: string]: number } = {
+      'A+': 4.3,
+      'A': 4.0,
+      'A-': 3.7,
+      'B+': 3.3,
+      'B': 3.0,
+      'B-': 2.7,
+      'C+': 2.3,
+      'C': 2.0,
+      'C-': 1.7,
+      'D+': 1.3,
+      'D': 1.0,
+      'D-': 0.7
+    };
+
+    // Get all moveable (unlocked) players
+    const moveablePlayers: Player[] = [];
+    const lockedPlayersByTeam: Map<string, Player[]> = new Map();
+
+    teams.forEach(team => {
+      const locked: Player[] = [];
+      team.players.forEach(player => {
+        if (team.lockedPlayers.has(player.id)) {
+          locked.push(player);
+        } else {
+          moveablePlayers.push(player);
+        }
+      });
+      lockedPlayersByTeam.set(team.id, locked);
+    });
+
+    // Add unassigned players to moveable
+    const assignedPlayerIds = new Set(teams.flatMap(team => team.players.map(p => p.id)));
+    players.forEach(player => {
+      if (!assignedPlayerIds.has(player.id)) {
+        moveablePlayers.push(player);
+      }
+    });
+
+    // Sort moveable players by rating for snake draft distribution
+    moveablePlayers.sort((a, b) => ratingValues[b.rating] - ratingValues[a.rating]);
+
+    // Initialize teams with only locked players
+    const balancedTeams: Team[] = teams.map(team => ({
+      ...team,
+      players: lockedPlayersByTeam.get(team.id) || []
+    }));
+
+    // Helper to get team total rating
+    const getTeamTotal = (team: Team) => {
+      return team.players.reduce((sum, p) => sum + ratingValues[p.rating], 0);
+    };
+
+    // Helper to get team average
+    const getTeamAverage = (team: Team) => {
+      if (team.players.length === 0) return 0;
+      return getTeamTotal(team) / team.players.length;
+    };
+
+    // Distribute players using snake draft to ensure fairness
+    // This prevents one team from getting all good or all bad players
+    let teamIndex = 0;
+    let direction = 1; // 1 for forward, -1 for backward
+
+    for (const player of moveablePlayers) {
+      // Find the next team that needs players
+      let attempts = 0;
+      while (attempts < 16) { // Prevent infinite loop
+        const currentTeam = balancedTeams[teamIndex];
+
+        if (currentTeam.players.length < 4) {
+          currentTeam.players.push(player);
+          break;
+        }
+
+        // Move to next team
+        teamIndex += direction;
+
+        // Handle snake draft direction changes
+        if (teamIndex >= 8) {
+          teamIndex = 7;
+          direction = -1;
+        } else if (teamIndex < 0) {
+          teamIndex = 0;
+          direction = 1;
+        }
+
+        attempts++;
+      }
+
+      // Move to next position for next player
+      teamIndex += direction;
+      if (teamIndex >= 8) {
+        teamIndex = 7;
+        direction = -1;
+      } else if (teamIndex < 0) {
+        teamIndex = 0;
+        direction = 1;
+      }
+    }
+
+    // Now optimize by swapping players to minimize variance
+    let improved = true;
+    let iterations = 0;
+
+    while (improved && iterations < 50) {
+      improved = false;
+      iterations++;
+
+      // Calculate current variance
+      const averages = balancedTeams.map(t => getTeamAverage(t));
+      const overallAvg = averages.reduce((a, b) => a + b, 0) / averages.length;
+      const currentVariance = averages.reduce((sum, avg) => sum + Math.pow(avg - overallAvg, 2), 0);
+
+      // Try swapping players between teams
+      for (let i = 0; i < balancedTeams.length; i++) {
+        for (let j = i + 1; j < balancedTeams.length; j++) {
+          const team1 = balancedTeams[i];
+          const team2 = balancedTeams[j];
+
+          // Skip if teams don't have the same number of players (to maintain balance)
+          if (Math.abs(team1.players.length - team2.players.length) > 1) continue;
+
+          // Try each possible swap
+          for (const p1 of team1.players) {
+            if (team1.lockedPlayers.has(p1.id)) continue;
+
+            for (const p2 of team2.players) {
+              if (team2.lockedPlayers.has(p2.id)) continue;
+
+              // Calculate new averages if we swap
+              const team1NewTotal = getTeamTotal(team1) - ratingValues[p1.rating] + ratingValues[p2.rating];
+              const team2NewTotal = getTeamTotal(team2) - ratingValues[p2.rating] + ratingValues[p1.rating];
+
+              const team1NewAvg = team1NewTotal / team1.players.length;
+              const team2NewAvg = team2NewTotal / team2.players.length;
+
+              // Calculate new variance
+              const newAverages = [...averages];
+              newAverages[i] = team1NewAvg;
+              newAverages[j] = team2NewAvg;
+              const newVariance = newAverages.reduce((sum, avg) => sum + Math.pow(avg - overallAvg, 2), 0);
+
+              // If this swap reduces variance, do it
+              if (newVariance < currentVariance - 0.001) {
+                // Perform the swap
+                const team1Players = team1.players.filter(p => p.id !== p1.id);
+                team1Players.push(p2);
+                team1.players = team1Players;
+
+                const team2Players = team2.players.filter(p => p.id !== p2.id);
+                team2Players.push(p1);
+                team2.players = team2Players;
+
+                averages[i] = team1NewAvg;
+                averages[j] = team2NewAvg;
+
+                improved = true;
+                break;
+              }
+            }
+            if (improved) break;
+          }
+          if (improved) break;
+        }
+        if (improved) break;
+      }
+    }
+
+    setTeams(balancedTeams);
+  };
+
   const clearAllTeams = () => {
     const clearedTeams = teams.map(team => ({
       ...team,
@@ -499,6 +672,9 @@ function App() {
             </button>
             <button className="btn" onClick={randomizeTeams}>
               Randomize Teams
+            </button>
+            <button className="btn" onClick={balanceTeams}>
+              ⚖️ Balance Teams
             </button>
             <button className="btn" onClick={clearAllTeams}>
               Clear All Teams
