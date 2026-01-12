@@ -40,7 +40,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
           value={player.rating}
           onChange={(e) => onRatingChange(player.id, e.target.value as Rating)}
         >
-          {(['A', 'B', 'C', 'D'] as Rating[]).map(rating => (
+          {(['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-'] as Rating[]).map(rating => (
             <option key={rating} value={rating}>{rating}</option>
           ))}
         </select>

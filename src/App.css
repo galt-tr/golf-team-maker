@@ -69,6 +69,21 @@ h1 {
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
+.btn-sort {
+  background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+  min-width: 100px;
+}
+
+.btn-sort.active {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  font-weight: 700;
+}
+
+.btn-sort:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(137, 247, 254, 0.4);
+}
+
 .player-list {
   display: flex;
   flex-direction: column;
@@ -535,4 +550,195 @@ h1 {
 
 .player-card-wrapper.locked .lock-btn {
   filter: drop-shadow(0 0 4px gold);
+}
+
+
+/* Saved Configuration Modal Styles */
+.saved-config-modal .modal-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-button {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.tab-button:hover {
+  background: #f5f5f5;
+}
+
+.save-config-section {
+  padding: 20px 0;
+}
+
+.save-description {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.save-form {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.config-name-input {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.config-name-input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.btn-save {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn-save:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.load-config-section {
+  padding: 20px 0;
+}
+
+.no-configs {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-configs p:first-child {
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.config-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.config-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+}
+
+.config-info {
+  flex: 1;
+}
+
+.config-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+}
+
+.config-date {
+  font-size: 0.85rem;
+  color: #999;
+  margin-bottom: 5px;
+}
+
+.config-stats {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.config-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-load {
+  padding: 8px 20px;
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-load:hover {
+  background: #5569d0;
+}
+
+.btn-delete {
+  padding: 8px;
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.btn-delete:hover {
+  transform: scale(1.2);
+}
+
+@media (max-width: 768px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .teams-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .save-form {
+    flex-direction: column;
+  }
+
+  .config-name-input {
+    width: 100%;
+  }
 }

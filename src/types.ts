@@ -1,4 +1,4 @@
-export type Rating = 'A' | 'B' | 'C' | 'D';
+export type Rating = 'A+' | 'A' | 'A-' | 'B+' | 'B' | 'B-' | 'C+' | 'C' | 'C-' | 'D+' | 'D' | 'D-';
 
 export interface Player {
   id: string;
@@ -16,4 +16,17 @@ export interface Team {
 export interface DragItem {
   player: Player;
   sourceTeamId: string | null;
+}
+
+export interface SavedConfiguration {
+  id: string;
+  name: string;
+  date: string;
+  teams: {
+    id: string;
+    name: string;
+    players: Player[];
+    lockedPlayers: string[]; // Array of player IDs (for serialization)
+  }[];
+  unassignedPlayers: Player[];
 }

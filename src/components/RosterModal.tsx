@@ -66,7 +66,7 @@ const RosterModal: React.FC<RosterModalProps> = ({
                 value={newPlayerRating}
                 onChange={(e) => setNewPlayerRating(e.target.value as Rating)}
               >
-                {(['A', 'B', 'C', 'D'] as Rating[]).map(rating => (
+                {(['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-'] as Rating[]).map(rating => (
                   <option key={rating} value={rating}>{rating}</option>
                 ))}
               </select>
@@ -121,7 +121,7 @@ const RosterModal: React.FC<RosterModalProps> = ({
                       value={player.rating}
                       onChange={(e) => onUpdatePlayer(player.id, e.target.value as Rating)}
                     >
-                      {(['A', 'B', 'C', 'D'] as Rating[]).map(rating => (
+                      {(['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-'] as Rating[]).map(rating => (
                         <option key={rating} value={rating}>{rating}</option>
                       ))}
                     </select>

@@ -1,17 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
-import { Player, Team, Rating, DragItem } from './types';
+import { Player, Team, Rating, DragItem, SavedConfiguration } from './types';
 import Roster from './components/Roster';
 import TeamBox from './components/TeamBox';
 import RosterModal from './components/RosterModal';
-
-const initialRosterNames = [
-  'Pops', 'Kevin', 'Dylan', 'Connor', 'Allen', 'Eric W.', 'Uncle Tim', 'Tim',
-  'Jimmy', 'Kyle', 'Eric R.', 'Scott', 'Cory', 'Mom', 'Jared', 'Joe R.',
-  'Sean G.', 'Don', 'Stephen', 'Christian', 'Samantha', 'Eric', 'Rob E.',
-  'Mark G.', 'Mark N.', 'Mark G Sr.', 'Tim H.', 'Tony', 'Austin H.', 'Sean M.',
-  'TBD', 'TBD'
-];
+import SavedConfigModal from './components/SavedConfigModal';
+import { defaultRoster } from './rosterConfig';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>([]);
@@ -19,18 +13,22 @@ function App() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
+  const [isSavedConfigModalOpen, setIsSavedConfigModalOpen] = useState(false);
+  const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>([]);
+  const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
 
   useEffect(() => {
     const savedPlayers = localStorage.getItem('golfPlayers');
     const savedTeams = localStorage.getItem('golfTeams');
+    const savedConfigs = localStorage.getItem('golfSavedConfigurations');
 
     if (savedPlayers) {
       setPlayers(JSON.parse(savedPlayers));
     } else {
-      const newPlayers = initialRosterNames.map(name => ({
+      const newPlayers = defaultRoster.map(player => ({
         id: Math.random().toString(36).substr(2, 9),
-        name: name,
-        rating: 'C' as Rating
+        name: player.name,
+        rating: player.rating
       }));
       setPlayers(newPlayers);
     }
@@ -45,6 +43,10 @@ function App() {
       setTeams(teamsWithSets);
     } else {
       initializeTeams();
+    }
+
+    if (savedConfigs) {
+      setSavedConfigurations(JSON.parse(savedConfigs));
     }
   }, []);
 
@@ -65,6 +67,12 @@ function App() {
     }
   }, [teams]);
 
+  useEffect(() => {
+    if (savedConfigurations.length > 0) {
+      localStorage.setItem('golfSavedConfigurations', JSON.stringify(savedConfigurations));
+    }
+  }, [savedConfigurations]);
+
   const initializeTeams = () => {
     const newTeams = [];
     for (let i = 1; i <= 8; i++) {
@@ -82,7 +90,50 @@ function App() {
     const assignedPlayerIds = new Set(
       teams.flatMap(team => team.players.map(p => p.id))
     );
-    return players.filter(player => !assignedPlayerIds.has(player.id));
+    let unassigned = players.filter(player => !assignedPlayerIds.has(player.id));
+
+    // Apply sorting if needed
+    if (sortOrder !== 'none') {
+      const ratingValues: { [key: string]: number } = {
+        'A+': 4.3,
+        'A': 4.0,
+        'A-': 3.7,
+        'B+': 3.3,
+        'B': 3.0,
+        'B-': 2.7,
+        'C+': 2.3,
+        'C': 2.0,
+        'C-': 1.7,
+        'D+': 1.3,
+        'D': 1.0,
+        'D-': 0.7
+      };
+
+      unassigned.sort((a, b) => {
+        const aValue = ratingValues[a.rating];
+        const bValue = ratingValues[b.rating];
+
+        if (sortOrder === 'asc') {
+          // Sort D -> C -> B -> A (worst to best)
+          return aValue - bValue;
+        } else {
+          // Sort A -> B -> C -> D (best to worst)
+          return bValue - aValue;
+        }
+      });
+    }
+
+    return unassigned;
+  };
+
+  const toggleSort = () => {
+    if (sortOrder === 'none') {
+      setSortOrder('desc'); // First click: A -> D (best to worst)
+    } else if (sortOrder === 'desc') {
+      setSortOrder('asc'); // Second click: D -> A (worst to best)
+    } else {
+      setSortOrder('none'); // Third click: back to original order
+    }
   };
 
   const handleRatingChange = (playerId: string, newRating: Rating) => {
@@ -283,12 +334,66 @@ function App() {
     setPlayers(players.filter(p => p.id !== playerId));
   };
 
+  const saveConfiguration = (name: string) => {
+    const unassignedPlayers = getUnassignedPlayers();
+    const newConfig: SavedConfiguration = {
+      id: Math.random().toString(36).substr(2, 9),
+      name,
+      date: new Date().toISOString(),
+      teams: teams.map(team => ({
+        ...team,
+        lockedPlayers: Array.from(team.lockedPlayers)
+      })),
+      unassignedPlayers
+    };
+    setSavedConfigurations([...savedConfigurations, newConfig]);
+  };
+
+  const loadConfiguration = (config: SavedConfiguration) => {
+    // Load teams with Sets converted back
+    const teamsWithSets = config.teams.map(team => ({
+      ...team,
+      lockedPlayers: new Set(team.lockedPlayers)
+    }));
+    setTeams(teamsWithSets);
+
+    // Update players list to include all players from the configuration
+    const allConfigPlayers = [
+      ...config.teams.flatMap(t => t.players),
+      ...config.unassignedPlayers
+    ];
+
+    // Merge with existing players (avoid duplicates based on name)
+    const playerNames = new Set(allConfigPlayers.map(p => p.name));
+    const mergedPlayers = [...allConfigPlayers];
+
+    players.forEach(existingPlayer => {
+      if (!playerNames.has(existingPlayer.name)) {
+        mergedPlayers.push(existingPlayer);
+      }
+    });
+
+    setPlayers(mergedPlayers);
+  };
+
+  const deleteConfiguration = (configId: string) => {
+    setSavedConfigurations(savedConfigurations.filter(c => c.id !== configId));
+  };
+
   const exportToCSV = () => {
     const ratingValues: { [key: string]: number } = {
-      'A': 4,
-      'B': 3,
-      'C': 2,
-      'D': 1
+      'A+': 4.3,
+      'A': 4.0,
+      'A-': 3.7,
+      'B+': 3.3,
+      'B': 3.0,
+      'B-': 2.7,
+      'C+': 2.3,
+      'C': 2.0,
+      'C-': 1.7,
+      'D+': 1.3,
+      'D': 1.0,
+      'D-': 0.7
     };
 
     // Create CSV header
@@ -360,12 +465,37 @@ function App() {
         onDeletePlayer={handleDeletePlayer}
       />
 
+      <SavedConfigModal
+        isOpen={isSavedConfigModalOpen}
+        onClose={() => setIsSavedConfigModalOpen(false)}
+        savedConfigs={savedConfigurations}
+        onLoad={loadConfiguration}
+        onDelete={deleteConfiguration}
+        onSave={saveConfiguration}
+      />
+
       <div className="main-layout">
         <div className="roster-section">
           <h2>Player Roster</h2>
           <div className="roster-controls">
             <button className="btn" onClick={() => setIsRosterModalOpen(true)}>
               Manage Roster
+            </button>
+            <button className="btn" onClick={() => setIsSavedConfigModalOpen(true)}>
+              💾 Save/Load
+            </button>
+            <button
+              className={`btn btn-sort ${sortOrder !== 'none' ? 'active' : ''}`}
+              onClick={toggleSort}
+              title={
+                sortOrder === 'none' ? 'Sort by rating' :
+                sortOrder === 'desc' ? 'Sorted A→D (click for D→A)' :
+                'Sorted D→A (click to unsort)'
+              }
+            >
+              {sortOrder === 'none' && '↕️ Sort'}
+              {sortOrder === 'desc' && '↓ A→D'}
+              {sortOrder === 'asc' && '↑ D→A'}
             </button>
             <button className="btn" onClick={randomizeTeams}>
               Randomize Teams
