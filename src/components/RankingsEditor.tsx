@@ -17,6 +17,7 @@ const RankingsEditor: React.FC = () => {
   const [editingRating, setEditingRating] = useState<Rating>('C');
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerRating, setNewPlayerRating] = useState<Rating>('C');
+  const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
 
   useEffect(() => {
     loadRosterConfig();
@@ -33,6 +34,52 @@ const RankingsEditor: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const ratingValues: { [key: string]: number } = {
+    'A+': 4.3,
+    'A': 4.0,
+    'A-': 3.7,
+    'B+': 3.3,
+    'B': 3.0,
+    'B-': 2.7,
+    'C+': 2.3,
+    'C': 2.0,
+    'C-': 1.7,
+    'D+': 1.3,
+    'D': 1.0,
+    'D-': 0.7
+  };
+
+  const getSortedRosterConfig = () => {
+    if (sortOrder === 'none') {
+      return rosterConfig;
+    }
+
+    const sorted = [...rosterConfig].sort((a, b) => {
+      const aValue = ratingValues[a.rating];
+      const bValue = ratingValues[b.rating];
+
+      if (sortOrder === 'asc') {
+        // Sort D -> C -> B -> A (worst to best)
+        return aValue - bValue;
+      } else {
+        // Sort A -> B -> C -> D (best to worst)
+        return bValue - aValue;
+      }
+    });
+
+    return sorted;
+  };
+
+  const toggleSort = () => {
+    if (sortOrder === 'none') {
+      setSortOrder('desc'); // First click: A -> D (best to worst)
+    } else if (sortOrder === 'desc') {
+      setSortOrder('asc'); // Second click: D -> A (worst to best)
+    } else {
+      setSortOrder('none'); // Third click: back to original order
     }
   };
 
@@ -138,14 +185,29 @@ const RankingsEditor: React.FC = () => {
         </div>
 
         <div className="roster-config-list">
-          <h2>Default Roster ({rosterConfig.length} players)</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h2>Default Roster ({rosterConfig.length} players)</h2>
+            <button
+              className={`btn btn-sort ${sortOrder !== 'none' ? 'active' : ''}`}
+              onClick={toggleSort}
+              title={
+                sortOrder === 'none' ? 'Sort by rating' :
+                sortOrder === 'desc' ? 'Sorted A→D (click for D→A)' :
+                'Sorted D→A (click to unsort)'
+              }
+            >
+              {sortOrder === 'none' && '↕️ Sort by Rating'}
+              {sortOrder === 'desc' && '↓ A→D'}
+              {sortOrder === 'asc' && '↑ D→A'}
+            </button>
+          </div>
           <div className="roster-table">
             <div className="roster-table-header">
               <div className="col-name">Name</div>
               <div className="col-rating">Rating</div>
               <div className="col-actions">Actions</div>
             </div>
-            {rosterConfig.map((entry) => (
+            {getSortedRosterConfig().map((entry) => (
               <div key={entry.id} className="roster-table-row">
                 {editingId === entry.id ? (
                   <>
