@@ -6,21 +6,17 @@ const { Pool } = require('pg');
 const app = express();
 
 // Database connection pool
-// For Supabase and other managed databases with SSL
+// SSL disabled for simplicity
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
 
-// Parse SSL mode from connection string
-const useSSL = connectionString && (
-  connectionString.includes('sslmode=require') ||
-  connectionString.includes('supabase.com') ||
-  connectionString.includes('vercel')
-);
+// Remove sslmode from connection string if present
+const cleanConnectionString = connectionString
+  ? connectionString.replace(/[?&]sslmode=require/g, '')
+  : '';
 
 const pool = new Pool({
-  connectionString,
-  ssl: useSSL ? {
-    rejectUnauthorized: false
-  } : false
+  connectionString: cleanConnectionString,
+  ssl: false // Disabled for simplicity
 });
 
 // Initialize database schema
