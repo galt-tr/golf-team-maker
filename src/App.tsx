@@ -33,6 +33,30 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Reload data when window/tab becomes visible (user returns from Rankings Editor)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Page visible - reloading data...');
+        loadInitialData();
+      }
+    };
+
+    const handleFocus = () => {
+      console.log('Window focused - reloading data...');
+      loadInitialData();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
