@@ -16,6 +16,9 @@ import {
   fetchRosterConfig
 } from './api';
 
+// Default template configuration with captains
+const DEFAULT_TEMPLATE_ID = 'k2bwj9';
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,8 +128,8 @@ function App() {
       const apiTeams = await fetchTeams();
 
       if (apiTeams.length === 0) {
-        // No teams in database - initialize empty teams
-        initializeTeams();
+        // No teams in database - load default template
+        await loadDefaultTemplate();
       } else {
         // Convert lockedPlayers arrays back to Sets
         const teamsWithSets = apiTeams.map((team) => ({
@@ -176,6 +179,30 @@ function App() {
       });
     }
     setTeams(newTeams);
+  };
+
+  const loadDefaultTemplate = async () => {
+    try {
+      console.log('Loading default template:', DEFAULT_TEMPLATE_ID);
+      const configs = await fetchSavedConfigs();
+      const defaultConfig = configs.find(c => c.id === DEFAULT_TEMPLATE_ID);
+
+      if (defaultConfig) {
+        // Load the default template
+        const teamsWithSets = defaultConfig.teams.map(team => ({
+          ...team,
+          lockedPlayers: new Set(team.lockedPlayers)
+        }));
+        setTeams(teamsWithSets);
+        console.log('✅ Default template loaded with captains locked');
+      } else {
+        console.log('Default template not found, initializing empty teams');
+        initializeTeams();
+      }
+    } catch (err) {
+      console.error('Error loading default template:', err);
+      initializeTeams();
+    }
   };
 
   const getUnassignedPlayers = () => {
@@ -526,13 +553,9 @@ function App() {
     setTeams(balancedTeams);
   };
 
-  const clearAllTeams = () => {
-    const clearedTeams = teams.map(team => ({
-      ...team,
-      players: [],
-      lockedPlayers: new Set<string>()
-    }));
-    setTeams(clearedTeams);
+  const clearAllTeams = async () => {
+    // Reset to default template instead of empty teams
+    await loadDefaultTemplate();
   };
 
   const togglePlayerLock = (teamId: string, playerId: string) => {
