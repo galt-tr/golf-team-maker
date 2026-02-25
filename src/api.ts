@@ -1,6 +1,8 @@
 import { Player, Team, SavedConfiguration, Rating } from './types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+// Use relative URL for Vercel (same domain) or localhost for development
+const API_URL = process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8080');
 
 // Helper function for API calls
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
