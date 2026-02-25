@@ -37,22 +37,34 @@ function App() {
 
   // Check for shared configuration in URL on mount
   useEffect(() => {
-    const sharedConfig = searchParams.get('config');
-    if (sharedConfig && !loading) {
-      try {
-        const decoded = atob(sharedConfig);
-        const config = JSON.parse(decoded);
-        console.log('Loading shared configuration from URL');
-        loadConfiguration(config);
-        // Remove config from URL after loading
-        setSearchParams({});
-      } catch (err) {
-        console.error('Invalid shared configuration in URL:', err);
-        alert('Invalid shared configuration link');
-      }
+    const shareId = searchParams.get('share');
+    if (shareId && !loading) {
+      loadSharedConfiguration(shareId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
+
+  const loadSharedConfiguration = async (shareId: string) => {
+    try {
+      console.log('Loading shared configuration:', shareId);
+      const configs = await fetchSavedConfigs();
+      const sharedConfig = configs.find(c => c.id === shareId);
+
+      if (sharedConfig) {
+        loadConfiguration(sharedConfig);
+        // Remove share param from URL after loading
+        setSearchParams({});
+        alert('✅ Team configuration loaded from shared link!');
+      } else {
+        alert('❌ Shared configuration not found. The link may be invalid or expired.');
+        setSearchParams({});
+      }
+    } catch (err) {
+      console.error('Error loading shared configuration:', err);
+      alert('Failed to load shared configuration');
+      setSearchParams({});
+    }
+  };
 
   // Reload data when navigating back to Team Builder
   useEffect(() => {
@@ -603,27 +615,38 @@ function App() {
     }
   };
 
-  const shareConfiguration = () => {
-    const unassignedPlayers = getUnassignedPlayers();
-    const config = {
-      teams: teams.map(team => ({
-        ...team,
-        lockedPlayers: Array.from(team.lockedPlayers)
-      })),
-      unassignedPlayers
-    };
+  const shareConfiguration = async () => {
+    try {
+      const unassignedPlayers = getUnassignedPlayers();
 
-    // Encode configuration to base64 for URL
-    const encoded = btoa(JSON.stringify(config));
-    const shareUrl = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
+      // Save to database to get a short ID
+      const shareId = Math.random().toString(36).substring(2, 8); // 6-character ID
+      const config: SavedConfiguration = {
+        id: shareId,
+        name: `Shared ${new Date().toLocaleDateString()}`,
+        date: new Date().toISOString(),
+        teams: teams.map(team => ({
+          ...team,
+          lockedPlayers: Array.from(team.lockedPlayers)
+        })),
+        unassignedPlayers
+      };
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert('Share link copied to clipboard! Anyone with this link can load this team configuration.');
-    }).catch(() => {
-      // Fallback if clipboard API fails
-      prompt('Copy this link to share:', shareUrl);
-    });
+      await saveSavedConfig(config);
+
+      // Create short shareable URL
+      const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        alert('✅ Share link copied to clipboard!\n\n' + shareUrl);
+      }).catch(() => {
+        prompt('Copy this link to share:', shareUrl);
+      });
+    } catch (err) {
+      console.error('Error creating share link:', err);
+      alert('Failed to create share link. Please try again.');
+    }
   };
 
   const exportToCSV = () => {
