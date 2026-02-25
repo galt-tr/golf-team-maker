@@ -22,6 +22,7 @@ const RankingsEditor: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingRating, setEditingRating] = useState<Rating>('C');
+  const [originalName, setOriginalName] = useState(''); // Track original name before editing
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerRating, setNewPlayerRating] = useState<Rating>('C');
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
@@ -98,9 +99,9 @@ const RankingsEditor: React.FC = () => {
       // Also update the players table (current session) so changes appear immediately
       const currentPlayers = await fetchPlayers();
       const updatedPlayers = currentPlayers.map(player => {
-        // Match by name since roster_config uses numeric IDs but players use string IDs
-        if (player.name === editingName) {
-          return { ...player, rating: editingRating };
+        // Match by ORIGINAL name (before editing) since name might have changed
+        if (player.name === originalName) {
+          return { ...player, name: editingName, rating: editingRating };
         }
         return player;
       });
@@ -108,6 +109,7 @@ const RankingsEditor: React.FC = () => {
 
       await loadRosterConfig();
       setEditingId(null);
+      setOriginalName('');
     } catch (err) {
       setError('Failed to update entry');
       console.error(err);
@@ -164,12 +166,14 @@ const RankingsEditor: React.FC = () => {
     setEditingId(entry.id);
     setEditingName(entry.name);
     setEditingRating(entry.rating);
+    setOriginalName(entry.name); // Save original name for matching
   };
 
   const cancelEditing = () => {
     setEditingId(null);
     setEditingName('');
     setEditingRating('C');
+    setOriginalName('');
   };
 
   if (loading) {
