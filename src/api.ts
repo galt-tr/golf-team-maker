@@ -1,12 +1,28 @@
 import { Player, Team, SavedConfiguration, Rating } from './types';
 
-// Use relative URL for Vercel (same domain) or localhost for development
-const API_URL = process.env.REACT_APP_API_URL ||
-  (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:8080');
+// Determine API URL based on environment
+const getApiUrl = () => {
+  // If explicitly set, use it
+  if (process.env.REACT_APP_API_URL) {
+    return process.env.REACT_APP_API_URL;
+  }
+
+  // In development, use localhost backend
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:8080';
+  }
+
+  // In production (Vercel), use same domain (serverless functions at /api)
+  return window.location.origin;
+};
+
+const API_URL = getApiUrl();
 
 // Helper function for API calls
 async function apiCall<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`, {
+  const url = `${API_URL}${endpoint}`;
+  console.log('API Call:', url); // Debug log
+  const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
