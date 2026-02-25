@@ -6,12 +6,20 @@ const { Pool } = require('pg');
 const app = express();
 
 // Database connection pool
-// Configure SSL for Vercel Postgres
+// For Supabase and other managed databases with SSL
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+
+// Parse SSL mode from connection string
+const useSSL = connectionString && (
+  connectionString.includes('sslmode=require') ||
+  connectionString.includes('supabase.com') ||
+  connectionString.includes('vercel')
+);
+
 const pool = new Pool({
   connectionString,
-  ssl: connectionString ? {
-    rejectUnauthorized: false // Required for Vercel Postgres and most managed databases
+  ssl: useSSL ? {
+    rejectUnauthorized: false
   } : false
 });
 
