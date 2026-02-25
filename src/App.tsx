@@ -52,11 +52,11 @@ function App() {
 
       if (sharedConfig) {
         loadConfiguration(sharedConfig);
-        // Remove share param from URL after loading
-        setSearchParams({});
-        alert('✅ Team configuration loaded from shared link!');
+        // Keep the share param in URL so it stays shareable
+        console.log('✅ Team configuration loaded from shared link!');
       } else {
         alert('❌ Shared configuration not found. The link may be invalid or expired.');
+        // Clear invalid share param
         setSearchParams({});
       }
     } catch (err) {
@@ -619,8 +619,9 @@ function App() {
     try {
       const unassignedPlayers = getUnassignedPlayers();
 
-      // Save to database to get a short ID
-      const shareId = Math.random().toString(36).substring(2, 8); // 6-character ID
+      // Generate short database ID (6 characters)
+      const shareId = Math.random().toString(36).substring(2, 8);
+
       const config: SavedConfiguration = {
         id: shareId,
         name: `Shared ${new Date().toLocaleDateString()}`,
@@ -634,12 +635,15 @@ function App() {
 
       await saveSavedConfig(config);
 
-      // Create short shareable URL
+      // Create shareable URL and update address bar
       const shareUrl = `${window.location.origin}${window.location.pathname}?share=${shareId}`;
+
+      // Update the address bar with the share URL
+      setSearchParams({ share: shareId });
 
       // Copy to clipboard
       navigator.clipboard.writeText(shareUrl).then(() => {
-        alert('✅ Share link copied to clipboard!\n\n' + shareUrl);
+        alert('✅ Share link copied to clipboard!\n\nThe URL is now in your address bar and has been saved to your clipboard.\n\n' + shareUrl);
       }).catch(() => {
         prompt('Copy this link to share:', shareUrl);
       });
