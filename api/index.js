@@ -9,9 +9,12 @@ const app = express();
 // SSL disabled for simplicity
 const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
 
-// Remove sslmode from connection string if present
+// Remove sslmode from connection string properly
 const cleanConnectionString = connectionString
-  ? connectionString.replace(/[?&]sslmode=require/g, '')
+  ? connectionString
+      .replace(/\?sslmode=require&/g, '?')  // If sslmode is first param
+      .replace(/&sslmode=require/g, '')     // If sslmode is not first param
+      .replace(/\?sslmode=require$/g, '')   // If sslmode is only param
   : '';
 
 const pool = new Pool({
