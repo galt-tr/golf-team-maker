@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './App.css';
 import { Player, Team, DragItem, SavedConfiguration } from './types';
 import Roster from './components/Roster';
@@ -18,6 +18,7 @@ import {
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
@@ -33,7 +34,16 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reload data when window/tab becomes visible (user returns from Rankings Editor)
+  // Reload data when navigating back to Team Builder
+  useEffect(() => {
+    if (location.pathname === '/') {
+      console.log('Navigated to Team Builder - reloading data...');
+      loadInitialData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Reload data when window/tab becomes visible
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
