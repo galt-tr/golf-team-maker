@@ -145,6 +145,92 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Seed database with default roster
+app.get('/api/seed', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      // Check if already seeded
+      const check = await client.query('SELECT COUNT(*) FROM roster_config');
+      const count = parseInt(check.rows[0].count);
+
+      if (count > 0) {
+        return res.json({
+          status: 'already_seeded',
+          message: `Database already has ${count} players. Delete them first if you want to reseed.`,
+          count
+        });
+      }
+
+      // Default roster data
+      const defaultRoster = [
+        { name: 'Pops', rating: 'B-' },
+        { name: 'Kevin', rating: 'A-' },
+        { name: 'Dylan', rating: 'B+' },
+        { name: 'Connor', rating: 'B' },
+        { name: 'Allen', rating: 'C+' },
+        { name: 'Eric W.', rating: 'C' },
+        { name: 'Uncle Tim', rating: 'C' },
+        { name: 'Tim', rating: 'B-' },
+        { name: 'Jimmy', rating: 'C+' },
+        { name: 'Kyle', rating: 'B' },
+        { name: 'Eric R.', rating: 'C' },
+        { name: 'Scott', rating: 'C-' },
+        { name: 'Cory', rating: 'B+' },
+        { name: 'Mom', rating: 'D+' },
+        { name: 'Jared', rating: 'C' },
+        { name: 'Joe R.', rating: 'C' },
+        { name: 'Sean G.', rating: 'C+' },
+        { name: 'Don', rating: 'A' },
+        { name: 'Stephen', rating: 'B' },
+        { name: 'Christian', rating: 'C' },
+        { name: 'Samantha', rating: 'D' },
+        { name: 'Eric', rating: 'C' },
+        { name: 'Rob E.', rating: 'C' },
+        { name: 'Mark G.', rating: 'B' },
+        { name: 'Mark N.', rating: 'C+' },
+        { name: 'Mark G Sr.', rating: 'C-' },
+        { name: 'Tim H.', rating: 'C' },
+        { name: 'Tony', rating: 'B-' },
+        { name: 'Austin H.', rating: 'C' },
+        { name: 'Sean M.', rating: 'C' },
+        { name: 'TBD', rating: 'C' },
+        { name: 'TBD', rating: 'C' }
+      ];
+
+      await client.query('BEGIN');
+
+      for (const player of defaultRoster) {
+        await client.query(
+          'INSERT INTO roster_config (name, rating) VALUES ($1, $2)',
+          [player.name, player.rating]
+        );
+      }
+
+      await client.query('COMMIT');
+
+      res.json({
+        status: 'success',
+        message: `Successfully seeded ${defaultRoster.length} players to roster_config`,
+        count: defaultRoster.length,
+        players: defaultRoster
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      hint: 'Make sure database tables are initialized first'
+    });
+  }
+});
+
 // Database diagnostics endpoint
 app.get('/api/debug', async (req, res) => {
   try {
