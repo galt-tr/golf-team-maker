@@ -6,9 +6,13 @@ const { Pool } = require('pg');
 const app = express();
 
 // Database connection pool
+// Configure SSL for Vercel Postgres
+const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
 const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL || process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString,
+  ssl: connectionString ? {
+    rejectUnauthorized: false // Required for Vercel Postgres and most managed databases
+  } : false
 });
 
 // Initialize database schema
