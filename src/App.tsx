@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import './App.css';
 import { Player, Team, DragItem, SavedConfiguration } from './types';
 import Roster from './components/Roster';
@@ -19,6 +19,7 @@ import {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
@@ -33,6 +34,25 @@ function App() {
     loadInitialData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Check for shared configuration in URL on mount
+  useEffect(() => {
+    const sharedConfig = searchParams.get('config');
+    if (sharedConfig && !loading) {
+      try {
+        const decoded = atob(sharedConfig);
+        const config = JSON.parse(decoded);
+        console.log('Loading shared configuration from URL');
+        loadConfiguration(config);
+        // Remove config from URL after loading
+        setSearchParams({});
+      } catch (err) {
+        console.error('Invalid shared configuration in URL:', err);
+        alert('Invalid shared configuration link');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   // Reload data when navigating back to Team Builder
   useEffect(() => {
@@ -583,6 +603,29 @@ function App() {
     }
   };
 
+  const shareConfiguration = () => {
+    const unassignedPlayers = getUnassignedPlayers();
+    const config = {
+      teams: teams.map(team => ({
+        ...team,
+        lockedPlayers: Array.from(team.lockedPlayers)
+      })),
+      unassignedPlayers
+    };
+
+    // Encode configuration to base64 for URL
+    const encoded = btoa(JSON.stringify(config));
+    const shareUrl = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      alert('Share link copied to clipboard! Anyone with this link can load this team configuration.');
+    }).catch(() => {
+      // Fallback if clipboard API fails
+      prompt('Copy this link to share:', shareUrl);
+    });
+  };
+
   const exportToCSV = () => {
     const ratingValues: { [key: string]: number } = {
       'A+': 4.3,
@@ -733,9 +776,14 @@ function App() {
         <div className="teams-section">
           <div className="teams-header">
             <h2>Teams</h2>
-            <button className="btn btn-export" onClick={exportToCSV}>
-              📊 Export to Excel
-            </button>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button className="btn btn-share" onClick={shareConfiguration}>
+                🔗 Share Link
+              </button>
+              <button className="btn btn-export" onClick={exportToCSV}>
+                📊 Export to Excel
+              </button>
+            </div>
           </div>
           <div className="teams-grid">
             {teams.map(team => (
