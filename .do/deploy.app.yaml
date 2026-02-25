@@ -1,0 +1,35 @@
+# Alternative simpler config if you want to manually create the database
+# and just deploy the app services
+
+name: golf-team-maker
+
+# Backend API service
+services:
+  - name: api
+    source_dir: /server
+    run_command: npm start
+    build_command: npm install
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        type: SECRET
+      - key: PORT
+        value: "8080"
+    health_check:
+      http_path: /health
+
+# Frontend static site
+static_sites:
+  - name: web
+    build_command: npm run build
+    output_dir: build
+    routes:
+      - path: /
+    envs:
+      - key: REACT_APP_API_URL
+        value: ${api.PUBLIC_URL}

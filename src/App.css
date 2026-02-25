@@ -725,6 +725,197 @@ h1 {
   transform: scale(1.2);
 }
 
+/* Navigation Styles */
+.navigation {
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+  border-radius: 15px;
+  overflow: hidden;
+}
+
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand h1 {
+  color: #667eea;
+  font-size: 1.8rem;
+  margin: 0;
+  padding: 20px 0;
+  text-shadow: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: 5px;
+}
+
+.nav-link {
+  padding: 10px 20px;
+  color: #666;
+  text-decoration: none;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  background: #f5f5f5;
+  color: #667eea;
+}
+
+.nav-link.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+/* Rankings Editor Styles */
+.rankings-editor-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.rankings-editor-header h1 {
+  color: white;
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.rankings-editor-content {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.rankings-editor-content h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+.roster-config-list {
+  margin-top: 40px;
+}
+
+.roster-table {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.roster-table-header,
+.roster-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr;
+  gap: 20px;
+  padding: 15px 20px;
+  align-items: center;
+}
+
+.roster-table-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.roster-table-row {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  transition: all 0.2s ease;
+}
+
+.roster-table-row:hover {
+  background: #e9ecef;
+  transform: translateX(5px);
+}
+
+.roster-table-row:last-child {
+  border-bottom: none;
+}
+
+.col-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.col-rating {
+  display: flex;
+  align-items: center;
+}
+
+.col-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.btn-small {
+  padding: 6px 14px;
+  font-size: 0.85rem;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.rating-badge.rating-Aplus,
+.rating-badge.rating-A,
+.rating-badge.rating-Aminus {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.rating-badge.rating-Bplus,
+.rating-badge.rating-B,
+.rating-badge.rating-Bminus {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.rating-badge.rating-Cplus,
+.rating-badge.rating-C,
+.rating-badge.rating-Cminus {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.rating-badge.rating-Dplus,
+.rating-badge.rating-D,
+.rating-badge.rating-Dminus {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: white;
+  font-size: 1.3rem;
+}
+
+.error-message {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(240, 147, 251, 0.3);
+}
+
 @media (max-width: 768px) {
   .main-layout {
     grid-template-columns: 1fr;
@@ -740,5 +931,30 @@ h1 {
 
   .config-name-input {
     width: 100%;
+  }
+
+  .nav-container {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .nav-brand h1 {
+    padding: 15px 0 0 0;
+  }
+
+  .nav-links {
+    width: 100%;
+    justify-content: center;
+    padding-bottom: 15px;
+  }
+
+  .roster-table-header,
+  .roster-table-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .col-actions {
+    justify-content: flex-start;
   }
 }

@@ -1,0 +1,47 @@
+name: golf-team-maker
+region: nyc
+
+# Database - Managed PostgreSQL
+databases:
+  - name: golf-db
+    engine: PG
+    production: false
+    version: "12"
+
+# Backend API service
+services:
+  - name: api
+    github:
+      repo: YOUR_GITHUB_USERNAME/golf-team-maker
+      branch: master
+      deploy_on_push: true
+    source_dir: /server
+    run_command: npm start
+    build_command: npm install
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: ${golf-db.DATABASE_URL}
+      - key: CORS_ORIGIN
+        value: ${APP_URL}
+    health_check:
+      http_path: /health
+
+# Frontend static site
+static_sites:
+  - name: web
+    github:
+      repo: YOUR_GITHUB_USERNAME/golf-team-maker
+      branch: master
+      deploy_on_push: true
+    build_command: npm run build
+    output_dir: build
+    routes:
+      - path: /
+    envs:
+      - key: REACT_APP_API_URL
+        value: ${api.PUBLIC_URL}

@@ -5,73 +5,99 @@ import Roster from './components/Roster';
 import TeamBox from './components/TeamBox';
 import RosterModal from './components/RosterModal';
 import SavedConfigModal from './components/SavedConfigModal';
-import { defaultRoster } from './rosterConfig';
+import {
+  fetchPlayers,
+  syncPlayers,
+  fetchTeams,
+  syncTeams,
+  fetchSavedConfigs,
+  saveSavedConfig,
+  deleteSavedConfig,
+  fetchRosterConfig
+} from './api';
 
 function App() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
   const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
   const [isSavedConfigModalOpen, setIsSavedConfigModalOpen] = useState(false);
   const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>([]);
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load initial data from API
   useEffect(() => {
-    const savedPlayers = localStorage.getItem('golfPlayers');
-    const savedTeams = localStorage.getItem('golfTeams');
-    const savedConfigs = localStorage.getItem('golfSavedConfigurations');
-
-    if (savedPlayers) {
-      setPlayers(JSON.parse(savedPlayers));
-    } else {
-      const newPlayers = defaultRoster.map(player => ({
-        id: Math.random().toString(36).substr(2, 9),
-        name: player.name,
-        rating: player.rating
-      }));
-      setPlayers(newPlayers);
-    }
-
-    if (savedTeams) {
-      const parsedTeams = JSON.parse(savedTeams);
-      // Convert lockedPlayers arrays back to Sets
-      const teamsWithSets = parsedTeams.map((team: any) => ({
-        ...team,
-        lockedPlayers: new Set(team.lockedPlayers || [])
-      }));
-      setTeams(teamsWithSets);
-    } else {
-      initializeTeams();
-    }
-
-    if (savedConfigs) {
-      setSavedConfigurations(JSON.parse(savedConfigs));
-    }
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (players.length > 0) {
-      localStorage.setItem('golfPlayers', JSON.stringify(players));
-    }
-  }, [players]);
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  useEffect(() => {
-    if (teams.length > 0) {
-      // Convert Sets to arrays for localStorage
-      const teamsForStorage = teams.map(team => ({
-        ...team,
-        lockedPlayers: Array.from(team.lockedPlayers)
-      }));
-      localStorage.setItem('golfTeams', JSON.stringify(teamsForStorage));
-    }
-  }, [teams]);
+      // Load players from API
+      const apiPlayers = await fetchPlayers();
 
-  useEffect(() => {
-    if (savedConfigurations.length > 0) {
-      localStorage.setItem('golfSavedConfigurations', JSON.stringify(savedConfigurations));
+      if (apiPlayers.length === 0) {
+        // No players in database - initialize from roster config
+        const rosterConfig = await fetchRosterConfig();
+        const newPlayers = rosterConfig.map(entry => ({
+          id: Math.random().toString(36).substr(2, 9),
+          name: entry.name,
+          rating: entry.rating
+        }));
+        setPlayers(newPlayers);
+        await syncPlayers(newPlayers);
+      } else {
+        setPlayers(apiPlayers);
+      }
+
+      // Load teams from API
+      const apiTeams = await fetchTeams();
+
+      if (apiTeams.length === 0) {
+        // No teams in database - initialize empty teams
+        initializeTeams();
+      } else {
+        // Convert lockedPlayers arrays back to Sets
+        const teamsWithSets = apiTeams.map((team) => ({
+          ...team,
+          lockedPlayers: new Set(team.lockedPlayers || [])
+        }));
+        setTeams(teamsWithSets);
+      }
+
+      // Load saved configurations
+      const configs = await fetchSavedConfigs();
+      setSavedConfigurations(configs);
+    } catch (err) {
+      console.error('Error loading initial data:', err);
+      setError('Failed to load data from server. Please refresh the page.');
+    } finally {
+      setLoading(false);
     }
-  }, [savedConfigurations]);
+  };
+
+  // Sync players to API when they change
+  useEffect(() => {
+    if (players.length > 0 && !loading) {
+      syncPlayers(players).catch(err => {
+        console.error('Error syncing players:', err);
+      });
+    }
+  }, [players, loading]);
+
+  // Sync teams to API when they change
+  useEffect(() => {
+    if (teams.length > 0 && !loading) {
+      syncTeams(teams).catch(err => {
+        console.error('Error syncing teams:', err);
+      });
+    }
+  }, [teams, loading]);
 
   const initializeTeams = () => {
     const newTeams = [];
@@ -283,9 +309,7 @@ function App() {
     setTeams(newTeams);
   };
 
-  const toggleEditMode = () => {
-    setIsEditMode(!isEditMode);
-  };
+  // Removed toggleEditMode as it's no longer used (edit mode was part of old inline editing)
 
   const balanceTeams = () => {
     const ratingValues: { [key: string]: number } = {
@@ -507,19 +531,27 @@ function App() {
     setPlayers(players.filter(p => p.id !== playerId));
   };
 
-  const saveConfiguration = (name: string) => {
-    const unassignedPlayers = getUnassignedPlayers();
-    const newConfig: SavedConfiguration = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      date: new Date().toISOString(),
-      teams: teams.map(team => ({
-        ...team,
-        lockedPlayers: Array.from(team.lockedPlayers)
-      })),
-      unassignedPlayers
-    };
-    setSavedConfigurations([...savedConfigurations, newConfig]);
+  const saveConfiguration = async (name: string) => {
+    try {
+      const unassignedPlayers = getUnassignedPlayers();
+      const newConfig: SavedConfiguration = {
+        id: Math.random().toString(36).substr(2, 9),
+        name,
+        date: new Date().toISOString(),
+        teams: teams.map(team => ({
+          ...team,
+          lockedPlayers: Array.from(team.lockedPlayers)
+        })),
+        unassignedPlayers
+      };
+
+      await saveSavedConfig(newConfig);
+      const configs = await fetchSavedConfigs();
+      setSavedConfigurations(configs);
+    } catch (err) {
+      console.error('Error saving configuration:', err);
+      alert('Failed to save configuration');
+    }
   };
 
   const loadConfiguration = (config: SavedConfiguration) => {
@@ -549,8 +581,15 @@ function App() {
     setPlayers(mergedPlayers);
   };
 
-  const deleteConfiguration = (configId: string) => {
-    setSavedConfigurations(savedConfigurations.filter(c => c.id !== configId));
+  const deleteConfiguration = async (configId: string) => {
+    try {
+      await deleteSavedConfig(configId);
+      const configs = await fetchSavedConfigs();
+      setSavedConfigurations(configs);
+    } catch (err) {
+      console.error('Error deleting configuration:', err);
+      alert('Failed to delete configuration');
+    }
   };
 
   const exportToCSV = () => {
@@ -624,10 +663,27 @@ function App() {
     document.body.removeChild(link);
   };
 
+  if (loading) {
+    return (
+      <div className="container">
+        <div className="loading">Loading Golf Team Maker...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container">
+        <div className="error-message">{error}</div>
+        <button className="btn" onClick={loadInitialData}>
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
-      <h1>Golf Team Maker</h1>
-
       <RosterModal
         isOpen={isRosterModalOpen}
         onClose={() => setIsRosterModalOpen(false)}
@@ -682,7 +738,7 @@ function App() {
           </div>
           <Roster
             players={getUnassignedPlayers()}
-            isEditMode={isEditMode}
+            isEditMode={false}
             onRatingChange={handleRatingChange}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
