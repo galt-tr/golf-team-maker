@@ -113,8 +113,72 @@ app.use(async (req, res, next) => {
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    const result = await pool.query('SELECT NOW()');
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'connected',
+      dbTime: result.rows[0].now
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      database: 'disconnected',
+      error: error.message,
+      hint: 'Check POSTGRES_URL environment variable'
+    });
+  }
+});
+
+// Database diagnostics endpoint
+app.get('/api/debug', async (req, res) => {
+  try {
+    const client = await pool.connect();
+    try {
+      // Check which tables exist
+      const tables = await client.query(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public'
+        ORDER BY table_name
+      `);
+
+      // Count records in each table
+      const counts = {};
+      for (const table of tables.rows) {
+        const result = await client.query(`SELECT COUNT(*) FROM ${table.table_name}`);
+        counts[table.table_name] = parseInt(result.rows[0].count);
+      }
+
+      res.json({
+        status: 'ok',
+        database: {
+          connected: true,
+          url: process.env.POSTGRES_URL ? 'Set' : 'Not set',
+          tables: tables.rows.map(t => t.table_name),
+          counts
+        },
+        schemaInitialized
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      error: error.message,
+      stack: error.stack,
+      env: {
+        hasPostgresUrl: !!process.env.POSTGRES_URL,
+        hasDatabaseUrl: !!process.env.DATABASE_URL,
+        nodeEnv: process.env.NODE_ENV
+      }
+    });
+  }
 });
 
 // ==================== ROSTER CONFIG ENDPOINTS ====================
