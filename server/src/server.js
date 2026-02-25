@@ -101,15 +101,27 @@ app.post('/api/players/sync', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Clear existing players
-      await client.query('DELETE FROM players');
-
-      // Insert new players
+      // Use UPSERT (INSERT ... ON CONFLICT) to avoid deleting and breaking foreign keys
       for (const player of players) {
         await client.query(
-          'INSERT INTO players (id, name, rating) VALUES ($1, $2, $3)',
+          `INSERT INTO players (id, name, rating, updated_at)
+           VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+           ON CONFLICT (id)
+           DO UPDATE SET name = $2, rating = $3, updated_at = CURRENT_TIMESTAMP`,
           [player.id, player.name, player.rating]
         );
+      }
+
+      // Remove players that are no longer in the list
+      const playerIds = players.map(p => p.id);
+      if (playerIds.length > 0) {
+        await client.query(
+          'DELETE FROM players WHERE id NOT IN (' + playerIds.map((_, i) => `$${i + 1}`).join(',') + ')',
+          playerIds
+        );
+      } else {
+        // If no players, delete all (but this shouldn't happen)
+        await client.query('DELETE FROM players');
       }
 
       await client.query('COMMIT');
@@ -183,25 +195,42 @@ app.post('/api/teams/sync', async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Clear existing data
-      await client.query('DELETE FROM team_players');
-      await client.query('DELETE FROM teams');
-
-      // Insert teams and their players
+      // Upsert teams
       for (const team of teams) {
         await client.query(
-          'INSERT INTO teams (id, name) VALUES ($1, $2)',
+          `INSERT INTO teams (id, name, updated_at)
+           VALUES ($1, $2, CURRENT_TIMESTAMP)
+           ON CONFLICT (id)
+           DO UPDATE SET name = $2, updated_at = CURRENT_TIMESTAMP`,
           [team.id, team.name]
         );
+      }
 
-        // Insert team-player relationships
+      // Clear team_players for teams being synced, then re-insert
+      const teamIds = teams.map(t => t.id);
+      if (teamIds.length > 0) {
+        await client.query(
+          'DELETE FROM team_players WHERE team_id IN (' + teamIds.map((_, i) => `$${i + 1}`).join(',') + ')',
+          teamIds
+        );
+      }
+
+      // Insert team-player relationships
+      for (const team of teams) {
         for (let i = 0; i < team.players.length; i++) {
           const player = team.players[i];
           const isLocked = team.lockedPlayers && team.lockedPlayers.includes(player.id);
-          await client.query(
-            'INSERT INTO team_players (team_id, player_id, is_locked, position) VALUES ($1, $2, $3, $4)',
-            [team.id, player.id, isLocked, i]
-          );
+
+          // Verify player exists before inserting
+          const playerExists = await client.query('SELECT id FROM players WHERE id = $1', [player.id]);
+          if (playerExists.rows.length > 0) {
+            await client.query(
+              'INSERT INTO team_players (team_id, player_id, is_locked, position) VALUES ($1, $2, $3, $4)',
+              [team.id, player.id, isLocked, i]
+            );
+          } else {
+            console.warn(`Player ${player.id} (${player.name}) not found in players table, skipping team assignment`);
+          }
         }
       }
 

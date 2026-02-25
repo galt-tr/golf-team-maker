@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Rating } from '../types';
-import { fetchRosterConfig, updateRosterConfigEntry, addRosterConfigEntry, deleteRosterConfigEntry } from '../api';
+import {
+  fetchRosterConfig,
+  updateRosterConfigEntry,
+  addRosterConfigEntry,
+  deleteRosterConfigEntry,
+  fetchPlayers,
+  syncPlayers
+} from '../api';
 
 interface RosterConfigEntry {
   id: number;
@@ -85,7 +92,20 @@ const RankingsEditor: React.FC = () => {
 
   const handleUpdateEntry = async (id: number) => {
     try {
+      // Update the roster_config (master roster)
       await updateRosterConfigEntry(id, editingName, editingRating);
+
+      // Also update the players table (current session) so changes appear immediately
+      const currentPlayers = await fetchPlayers();
+      const updatedPlayers = currentPlayers.map(player => {
+        // Match by name since roster_config uses numeric IDs but players use string IDs
+        if (player.name === editingName) {
+          return { ...player, rating: editingRating };
+        }
+        return player;
+      });
+      await syncPlayers(updatedPlayers);
+
       await loadRosterConfig();
       setEditingId(null);
     } catch (err) {
@@ -98,7 +118,18 @@ const RankingsEditor: React.FC = () => {
     if (!newPlayerName.trim()) return;
 
     try {
+      // Add to roster_config (master roster)
       await addRosterConfigEntry(newPlayerName.trim(), newPlayerRating);
+
+      // Also add to players table (current session)
+      const currentPlayers = await fetchPlayers();
+      const newPlayer = {
+        id: Math.random().toString(36).substr(2, 9),
+        name: newPlayerName.trim(),
+        rating: newPlayerRating
+      };
+      await syncPlayers([...currentPlayers, newPlayer]);
+
       await loadRosterConfig();
       setNewPlayerName('');
       setNewPlayerRating('C');
@@ -108,13 +139,20 @@ const RankingsEditor: React.FC = () => {
     }
   };
 
-  const handleDeleteEntry = async (id: number) => {
+  const handleDeleteEntry = async (id: number, playerName: string) => {
     if (!window.confirm('Are you sure you want to delete this player from the default roster?')) {
       return;
     }
 
     try {
+      // Delete from roster_config (master roster)
       await deleteRosterConfigEntry(id);
+
+      // Also delete from players table (current session) if they exist
+      const currentPlayers = await fetchPlayers();
+      const updatedPlayers = currentPlayers.filter(p => p.name !== playerName);
+      await syncPlayers(updatedPlayers);
+
       await loadRosterConfig();
     } catch (err) {
       setError('Failed to delete entry');
@@ -263,7 +301,7 @@ const RankingsEditor: React.FC = () => {
                       </button>
                       <button
                         className="btn-delete"
-                        onClick={() => handleDeleteEntry(entry.id)}
+                        onClick={() => handleDeleteEntry(entry.id, entry.name)}
                         title="Delete player"
                       >
                         🗑️

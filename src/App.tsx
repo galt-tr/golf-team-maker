@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './App.css';
-import { Player, Team, Rating, DragItem, SavedConfiguration } from './types';
+import { Player, Team, DragItem, SavedConfiguration } from './types';
 import Roster from './components/Roster';
 import TeamBox from './components/TeamBox';
-import RosterModal from './components/RosterModal';
 import SavedConfigModal from './components/SavedConfigModal';
 import {
   fetchPlayers,
@@ -17,10 +17,10 @@ import {
 } from './api';
 
 function App() {
+  const navigate = useNavigate();
   const [players, setPlayers] = useState<Player[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
   const [draggedItem, setDraggedItem] = useState<DragItem | null>(null);
-  const [isRosterModalOpen, setIsRosterModalOpen] = useState(false);
   const [isSavedConfigModalOpen, setIsSavedConfigModalOpen] = useState(false);
   const [savedConfigurations, setSavedConfigurations] = useState<SavedConfiguration[]>([]);
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
@@ -162,31 +162,7 @@ function App() {
     }
   };
 
-  const handleRatingChange = (playerId: string, newRating: Rating) => {
-    setPlayers(prevPlayers =>
-      prevPlayers.map(player =>
-        player.id === playerId ? { ...player, rating: newRating } : player
-      )
-    );
-  };
-
-  const handleNameChange = (playerId: string, newName: string) => {
-    setPlayers(prevPlayers =>
-      prevPlayers.map(player =>
-        player.id === playerId ? { ...player, name: newName } : player
-      )
-    );
-
-    // Also update the player in teams
-    setTeams(prevTeams =>
-      prevTeams.map(team => ({
-        ...team,
-        players: team.players.map(player =>
-          player.id === playerId ? { ...player, name: newName } : player
-        )
-      }))
-    );
-  };
+  // Removed handleRatingChange and handleNameChange - editing now done in Rankings Editor
 
   const handleDragStart = (e: React.DragEvent, player: Player, sourceTeamId: string | null) => {
     // Check if player is locked
@@ -510,26 +486,7 @@ function App() {
     );
   };
 
-  const handleAddPlayer = (name: string, rating: Rating) => {
-    const newPlayer: Player = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      rating
-    };
-    setPlayers([...players, newPlayer]);
-  };
-
-  const handleDeletePlayer = (playerId: string) => {
-    // Remove from teams first
-    const updatedTeams = teams.map(team => ({
-      ...team,
-      players: team.players.filter(p => p.id !== playerId)
-    }));
-    setTeams(updatedTeams);
-
-    // Remove from players list
-    setPlayers(players.filter(p => p.id !== playerId));
-  };
+  // Removed handleAddPlayer and handleDeletePlayer - player management now done in Rankings Editor
 
   const saveConfiguration = async (name: string) => {
     try {
@@ -684,16 +641,6 @@ function App() {
 
   return (
     <div className="container">
-      <RosterModal
-        isOpen={isRosterModalOpen}
-        onClose={() => setIsRosterModalOpen(false)}
-        players={players}
-        onUpdatePlayer={handleRatingChange}
-        onUpdatePlayerName={handleNameChange}
-        onAddPlayer={handleAddPlayer}
-        onDeletePlayer={handleDeletePlayer}
-      />
-
       <SavedConfigModal
         isOpen={isSavedConfigModalOpen}
         onClose={() => setIsSavedConfigModalOpen(false)}
@@ -707,11 +654,14 @@ function App() {
         <div className="roster-section">
           <h2>Player Roster</h2>
           <div className="roster-controls">
-            <button className="btn" onClick={() => setIsRosterModalOpen(true)}>
-              Manage Roster
+            <button className="btn" onClick={() => navigate('/rankings')}>
+              ⚙️ Manage Roster
             </button>
             <button className="btn" onClick={() => setIsSavedConfigModalOpen(true)}>
               💾 Save/Load
+            </button>
+            <button className="btn" onClick={loadInitialData} title="Reload data from database">
+              🔄 Refresh
             </button>
             <button
               className={`btn btn-sort ${sortOrder !== 'none' ? 'active' : ''}`}
@@ -739,7 +689,7 @@ function App() {
           <Roster
             players={getUnassignedPlayers()}
             isEditMode={false}
-            onRatingChange={handleRatingChange}
+            onRatingChange={() => {}}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDrop={handleDrop}
