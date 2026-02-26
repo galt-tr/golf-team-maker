@@ -236,6 +236,11 @@ app.get('/api/debug', async (req, res) => {
   try {
     const client = await pool.connect();
     try {
+      // Get data from both tables
+      const rosterConfig = await client.query('SELECT * FROM roster_config ORDER BY id ASC');
+      const players = await client.query('SELECT * FROM players ORDER BY created_at ASC');
+      const teams = await client.query('SELECT * FROM teams ORDER BY id ASC');
+
       // Check which tables exist
       const tables = await client.query(`
         SELECT table_name
@@ -258,6 +263,11 @@ app.get('/api/debug', async (req, res) => {
           url: process.env.POSTGRES_URL ? 'Set' : 'Not set',
           tables: tables.rows.map(t => t.table_name),
           counts
+        },
+        data: {
+          roster_config: rosterConfig.rows,
+          players: players.rows,
+          teams: teams.rows
         },
         schemaInitialized
       });
