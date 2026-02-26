@@ -107,22 +107,14 @@ function App() {
       setLoading(true);
       setError(null);
 
-      // Load players from API
-      const apiPlayers = await fetchPlayers();
-
-      if (apiPlayers.length === 0) {
-        // No players in database - initialize from roster config
-        const rosterConfig = await fetchRosterConfig();
-        const newPlayers = rosterConfig.map(entry => ({
-          id: Math.random().toString(36).substr(2, 9),
-          name: entry.name,
-          rating: entry.rating
-        }));
-        setPlayers(newPlayers);
-        await syncPlayers(newPlayers);
-      } else {
-        setPlayers(apiPlayers);
-      }
+      // ALWAYS load players from roster_config (Rankings Editor is source of truth)
+      const rosterConfig = await fetchRosterConfig();
+      const playersFromRoster = rosterConfig.map(entry => ({
+        id: `roster-${entry.id}`, // Use roster config ID for consistency
+        name: entry.name,
+        rating: entry.rating
+      }));
+      setPlayers(playersFromRoster);
 
       // Load teams from API
       const apiTeams = await fetchTeams();
@@ -150,14 +142,8 @@ function App() {
     }
   };
 
-  // Sync players to API when they change
-  useEffect(() => {
-    if (players.length > 0 && !loading) {
-      syncPlayers(players).catch(err => {
-        console.error('Error syncing players:', err);
-      });
-    }
-  }, [players, loading]);
+  // Players are now loaded from roster_config, no need to sync them back
+  // (roster_config is the source of truth, managed by Rankings Editor)
 
   // Sync teams to API when they change
   useEffect(() => {
