@@ -32,11 +32,6 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear localStorage on mount to prevent issues from old localStorage-based version
-  useEffect(() => {
-    localStorage.clear();
-  }, []);
-
   // Load initial data from API
   useEffect(() => {
     loadInitialData();
