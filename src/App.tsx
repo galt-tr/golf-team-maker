@@ -177,8 +177,9 @@ function App() {
         unassignedPlayers
       };
 
-      await saveSavedConfig(workingDraft);
-      console.log('✅ Working draft auto-saved');
+      // Save to localStorage instead of database for per-user drafts
+      localStorage.setItem(WORKING_DRAFT_ID, JSON.stringify(workingDraft));
+      console.log('✅ Working draft auto-saved to localStorage');
     } catch (err) {
       console.error('Error auto-saving working draft:', err);
     }
@@ -199,15 +200,15 @@ function App() {
 
   const loadWorkingDraft = async () => {
     try {
-      console.log('Loading working draft...');
-      const configs = await fetchSavedConfigs();
-      const workingDraft = configs.find(c => c.id === WORKING_DRAFT_ID);
+      console.log('Loading working draft from localStorage...');
+      const storedDraft = localStorage.getItem(WORKING_DRAFT_ID);
 
-      if (workingDraft) {
+      if (storedDraft) {
+        const workingDraft = JSON.parse(storedDraft);
         // Remap player IDs to match current roster_config
         const teamsWithRemappedPlayers = remapPlayerIds(workingDraft.teams);
         setTeams(teamsWithRemappedPlayers);
-        console.log('✅ Working draft loaded');
+        console.log('✅ Working draft loaded from localStorage');
       } else {
         // No working draft exists, load default template
         console.log('No working draft found, loading default template');
@@ -854,7 +855,7 @@ function App() {
       <SavedConfigModal
         isOpen={isSavedConfigModalOpen}
         onClose={() => setIsSavedConfigModalOpen(false)}
-        savedConfigs={savedConfigurations.filter(c => c.id !== WORKING_DRAFT_ID)}
+        savedConfigs={savedConfigurations}
         onLoad={loadConfiguration}
         onDelete={deleteConfiguration}
         onSave={saveConfiguration}
