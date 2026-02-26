@@ -20,7 +20,6 @@ const RankingsEditor: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const [editingRating, setEditingRating] = useState<Rating>('C');
-  const [originalName, setOriginalName] = useState(''); // Track original name before editing
   const [newPlayerName, setNewPlayerName] = useState('');
   const [newPlayerRating, setNewPlayerRating] = useState<Rating>('C');
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
@@ -96,7 +95,6 @@ const RankingsEditor: React.FC = () => {
 
       await loadRosterConfig();
       setEditingId(null);
-      setOriginalName('');
     } catch (err) {
       setError('Failed to update entry');
       console.error(err);
@@ -139,14 +137,12 @@ const RankingsEditor: React.FC = () => {
     setEditingId(entry.id);
     setEditingName(entry.name);
     setEditingRating(entry.rating);
-    setOriginalName(entry.name); // Save original name for matching
   };
 
   const cancelEditing = () => {
     setEditingId(null);
     setEditingName('');
     setEditingRating('C');
-    setOriginalName('');
   };
 
   if (loading) {

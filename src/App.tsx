@@ -6,8 +6,6 @@ import Roster from './components/Roster';
 import TeamBox from './components/TeamBox';
 import SavedConfigModal from './components/SavedConfigModal';
 import {
-  fetchPlayers,
-  syncPlayers,
   fetchTeams,
   syncTeams,
   fetchSavedConfigs,
