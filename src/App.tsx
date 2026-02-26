@@ -14,6 +14,7 @@ import {
 
 // Default template configuration with captains
 const DEFAULT_TEMPLATE_ID = 'k2bwj9';
+const WORKING_DRAFT_ID = '__WORKING_DRAFT__';
 
 function App() {
   const navigate = useNavigate();
@@ -84,17 +85,12 @@ function App() {
         rating: entry.rating
       }));
 
-      // Update players but preserve teams
+      // Update players
       setPlayers(playersFromRoster);
 
-      // Update player ratings in existing teams if they changed
-      setTeams(prevTeams => prevTeams.map(team => ({
-        ...team,
-        players: team.players.map(teamPlayer => {
-          const updatedPlayer = playersFromRoster.find(p => p.id === teamPlayer.id);
-          return updatedPlayer || teamPlayer; // Use updated player if found, otherwise keep original
-        })
-      })));
+      // Reload working draft to get the latest team state
+      // This ensures teams persist when navigating back from Rankings Editor
+      await loadWorkingDraft();
     } catch (err) {
       console.error('Error reloading players:', err);
     }
@@ -141,9 +137,8 @@ function App() {
       }));
       setPlayers(playersFromRoster);
 
-      // Always load default template on initial load
-      // Teams are ephemeral unless explicitly saved via Save/Load feature
-      await loadDefaultTemplate();
+      // Load working draft (auto-saved teams) or default template if no draft exists
+      await loadWorkingDraft();
 
       // Load saved configurations
       const configs = await fetchSavedConfigs();
@@ -159,8 +154,34 @@ function App() {
   // Players are now loaded from roster_config, no need to sync them back
   // (roster_config is the source of truth, managed by Rankings Editor)
 
-  // Teams are NOT auto-synced - they only persist when explicitly saved via Save/Load
-  // This allows users to build teams temporarily without polluting the database
+  // Auto-save teams to working draft whenever they change
+  useEffect(() => {
+    if (teams.length > 0 && !loading) {
+      saveWorkingDraft();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teams]);
+
+  const saveWorkingDraft = async () => {
+    try {
+      const unassignedPlayers = getUnassignedPlayers();
+      const workingDraft: SavedConfiguration = {
+        id: WORKING_DRAFT_ID,
+        name: '__Working Draft__',
+        date: new Date().toISOString(),
+        teams: teams.map(team => ({
+          ...team,
+          lockedPlayers: Array.from(team.lockedPlayers)
+        })),
+        unassignedPlayers
+      };
+
+      await saveSavedConfig(workingDraft);
+      console.log('✅ Working draft auto-saved');
+    } catch (err) {
+      console.error('Error auto-saving working draft:', err);
+    }
+  };
 
   const initializeTeams = () => {
     const newTeams = [];
@@ -173,6 +194,31 @@ function App() {
       });
     }
     setTeams(newTeams);
+  };
+
+  const loadWorkingDraft = async () => {
+    try {
+      console.log('Loading working draft...');
+      const configs = await fetchSavedConfigs();
+      const workingDraft = configs.find(c => c.id === WORKING_DRAFT_ID);
+
+      if (workingDraft) {
+        // Load the working draft
+        const teamsWithSets = workingDraft.teams.map(team => ({
+          ...team,
+          lockedPlayers: new Set(team.lockedPlayers)
+        }));
+        setTeams(teamsWithSets);
+        console.log('✅ Working draft loaded');
+      } else {
+        // No working draft exists, load default template
+        console.log('No working draft found, loading default template');
+        await loadDefaultTemplate();
+      }
+    } catch (err) {
+      console.error('Error loading working draft:', err);
+      await loadDefaultTemplate();
+    }
   };
 
   const loadDefaultTemplate = async () => {
@@ -619,6 +665,12 @@ function App() {
     });
 
     setPlayers(mergedPlayers);
+
+    // Auto-save this configuration as the new working draft
+    // This ensures it persists when navigating to Rankings Editor and back
+    setTimeout(() => {
+      saveWorkingDraft();
+    }, 100);
   };
 
   const deleteConfiguration = async (configId: string) => {
@@ -765,7 +817,7 @@ function App() {
       <SavedConfigModal
         isOpen={isSavedConfigModalOpen}
         onClose={() => setIsSavedConfigModalOpen(false)}
-        savedConfigs={savedConfigurations}
+        savedConfigs={savedConfigurations.filter(c => c.id !== WORKING_DRAFT_ID)}
         onLoad={loadConfiguration}
         onDelete={deleteConfiguration}
         onSave={saveConfiguration}
