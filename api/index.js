@@ -523,7 +523,11 @@ app.post('/api/saved-configs', async (req, res) => {
     const data = { teams, unassignedPlayers };
 
     const result = await pool.query(
-      'INSERT INTO saved_configurations (id, name, data) VALUES ($1, $2, $3) RETURNING *',
+      `INSERT INTO saved_configurations (id, name, data, created_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       ON CONFLICT (id)
+       DO UPDATE SET name = $2, data = $3
+       RETURNING *`,
       [id, name, JSON.stringify(data)]
     );
 
