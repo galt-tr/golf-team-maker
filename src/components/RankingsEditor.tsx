@@ -4,9 +4,7 @@ import {
   fetchRosterConfig,
   updateRosterConfigEntry,
   addRosterConfigEntry,
-  deleteRosterConfigEntry,
-  fetchPlayers,
-  syncPlayers
+  deleteRosterConfigEntry
 } from '../api';
 
 interface RosterConfigEntry {
@@ -93,19 +91,8 @@ const RankingsEditor: React.FC = () => {
 
   const handleUpdateEntry = async (id: number) => {
     try {
-      // Update the roster_config (master roster)
+      // Update the roster_config (source of truth for both Rankings Editor and Player Roster)
       await updateRosterConfigEntry(id, editingName, editingRating);
-
-      // Also update the players table (current session) so changes appear immediately
-      const currentPlayers = await fetchPlayers();
-      const updatedPlayers = currentPlayers.map(player => {
-        // Match by ORIGINAL name (before editing) since name might have changed
-        if (player.name === originalName) {
-          return { ...player, name: editingName, rating: editingRating };
-        }
-        return player;
-      });
-      await syncPlayers(updatedPlayers);
 
       await loadRosterConfig();
       setEditingId(null);
@@ -120,17 +107,8 @@ const RankingsEditor: React.FC = () => {
     if (!newPlayerName.trim()) return;
 
     try {
-      // Add to roster_config (master roster)
+      // Add to roster_config (source of truth)
       await addRosterConfigEntry(newPlayerName.trim(), newPlayerRating);
-
-      // Also add to players table (current session)
-      const currentPlayers = await fetchPlayers();
-      const newPlayer = {
-        id: Math.random().toString(36).substr(2, 9),
-        name: newPlayerName.trim(),
-        rating: newPlayerRating
-      };
-      await syncPlayers([...currentPlayers, newPlayer]);
 
       await loadRosterConfig();
       setNewPlayerName('');
@@ -142,18 +120,13 @@ const RankingsEditor: React.FC = () => {
   };
 
   const handleDeleteEntry = async (id: number, playerName: string) => {
-    if (!window.confirm('Are you sure you want to delete this player from the default roster?')) {
+    if (!window.confirm('Are you sure you want to delete this player from the roster?')) {
       return;
     }
 
     try {
-      // Delete from roster_config (master roster)
+      // Delete from roster_config (source of truth)
       await deleteRosterConfigEntry(id);
-
-      // Also delete from players table (current session) if they exist
-      const currentPlayers = await fetchPlayers();
-      const updatedPlayers = currentPlayers.filter(p => p.name !== playerName);
-      await syncPlayers(updatedPlayers);
 
       await loadRosterConfig();
     } catch (err) {
