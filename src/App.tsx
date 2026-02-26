@@ -28,6 +28,7 @@ function App() {
   const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   // Load initial data from API
   useEffect(() => {
@@ -69,12 +70,12 @@ function App() {
   // Reload players (not teams) when navigating back to Team Builder
   // This ensures player ratings are up-to-date if changed in Rankings Editor
   useEffect(() => {
-    if (location.pathname === '/' && !loading) {
+    if (location.pathname === '/' && !loading && !isLoadingConfig) {
       console.log('Navigated to Team Builder - reloading players only...');
       reloadPlayersOnly();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, isLoadingConfig]);
 
   const reloadPlayersOnly = async () => {
     try {
@@ -100,14 +101,14 @@ function App() {
   // This ensures player ratings are up-to-date if changed in another tab
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden && location.pathname === '/') {
+      if (!document.hidden && location.pathname === '/' && !isLoadingConfig) {
         console.log('Page visible - reloading players only...');
         reloadPlayersOnly();
       }
     };
 
     const handleFocus = () => {
-      if (location.pathname === '/') {
+      if (location.pathname === '/' && !isLoadingConfig) {
         console.log('Window focused - reloading players only...');
         reloadPlayersOnly();
       }
@@ -121,7 +122,7 @@ function App() {
       window.removeEventListener('focus', handleFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, isLoadingConfig]);
 
   const loadInitialData = async () => {
     try {
@@ -156,11 +157,11 @@ function App() {
 
   // Auto-save teams to working draft whenever they change
   useEffect(() => {
-    if (teams.length > 0 && !loading) {
+    if (teams.length > 0 && !loading && !isLoadingConfig) {
       saveWorkingDraft();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teams]);
+  }, [teams, isLoadingConfig]);
 
   const saveWorkingDraft = async () => {
     try {
@@ -673,6 +674,9 @@ function App() {
   };
 
   const loadConfiguration = (config: SavedConfiguration) => {
+    // Set flag to prevent auto-reload from interfering
+    setIsLoadingConfig(true);
+
     // Remap player IDs to match current roster_config
     const teamsWithRemappedPlayers = remapPlayerIds(config.teams);
     setTeams(teamsWithRemappedPlayers);
@@ -699,6 +703,10 @@ function App() {
     // This ensures it persists when navigating to Rankings Editor and back
     setTimeout(() => {
       saveWorkingDraft();
+      // Clear the loading flag after save completes
+      setTimeout(() => {
+        setIsLoadingConfig(false);
+      }, 500);
     }, 100);
   };
 
