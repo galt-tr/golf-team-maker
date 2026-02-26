@@ -6,8 +6,6 @@ import Roster from './components/Roster';
 import TeamBox from './components/TeamBox';
 import SavedConfigModal from './components/SavedConfigModal';
 import {
-  fetchTeams,
-  syncTeams,
   fetchSavedConfigs,
   saveSavedConfig,
   deleteSavedConfig,
@@ -67,27 +65,56 @@ function App() {
     }
   };
 
-  // Reload data when navigating back to Team Builder
+  // Reload players (not teams) when navigating back to Team Builder
+  // This ensures player ratings are up-to-date if changed in Rankings Editor
   useEffect(() => {
-    if (location.pathname === '/') {
-      console.log('Navigated to Team Builder - reloading data...');
-      loadInitialData();
+    if (location.pathname === '/' && !loading) {
+      console.log('Navigated to Team Builder - reloading players only...');
+      reloadPlayersOnly();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  // Reload data when window/tab becomes visible
+  const reloadPlayersOnly = async () => {
+    try {
+      const rosterConfig = await fetchRosterConfig();
+      const playersFromRoster = rosterConfig.map(entry => ({
+        id: `roster-${entry.id}`,
+        name: entry.name,
+        rating: entry.rating
+      }));
+
+      // Update players but preserve teams
+      setPlayers(playersFromRoster);
+
+      // Update player ratings in existing teams if they changed
+      setTeams(prevTeams => prevTeams.map(team => ({
+        ...team,
+        players: team.players.map(teamPlayer => {
+          const updatedPlayer = playersFromRoster.find(p => p.id === teamPlayer.id);
+          return updatedPlayer || teamPlayer; // Use updated player if found, otherwise keep original
+        })
+      })));
+    } catch (err) {
+      console.error('Error reloading players:', err);
+    }
+  };
+
+  // Reload players (not teams) when window/tab becomes visible
+  // This ensures player ratings are up-to-date if changed in another tab
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        console.log('Page visible - reloading data...');
-        loadInitialData();
+      if (!document.hidden && location.pathname === '/') {
+        console.log('Page visible - reloading players only...');
+        reloadPlayersOnly();
       }
     };
 
     const handleFocus = () => {
-      console.log('Window focused - reloading data...');
-      loadInitialData();
+      if (location.pathname === '/') {
+        console.log('Window focused - reloading players only...');
+        reloadPlayersOnly();
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -98,7 +125,7 @@ function App() {
       window.removeEventListener('focus', handleFocus);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [location.pathname]);
 
   const loadInitialData = async () => {
     try {
@@ -114,20 +141,9 @@ function App() {
       }));
       setPlayers(playersFromRoster);
 
-      // Load teams from API
-      const apiTeams = await fetchTeams();
-
-      if (apiTeams.length === 0) {
-        // No teams in database - load default template
-        await loadDefaultTemplate();
-      } else {
-        // Convert lockedPlayers arrays back to Sets
-        const teamsWithSets = apiTeams.map((team) => ({
-          ...team,
-          lockedPlayers: new Set(team.lockedPlayers || [])
-        }));
-        setTeams(teamsWithSets);
-      }
+      // Always load default template on initial load
+      // Teams are ephemeral unless explicitly saved via Save/Load feature
+      await loadDefaultTemplate();
 
       // Load saved configurations
       const configs = await fetchSavedConfigs();
@@ -143,14 +159,8 @@ function App() {
   // Players are now loaded from roster_config, no need to sync them back
   // (roster_config is the source of truth, managed by Rankings Editor)
 
-  // Sync teams to API when they change
-  useEffect(() => {
-    if (teams.length > 0 && !loading) {
-      syncTeams(teams).catch(err => {
-        console.error('Error syncing teams:', err);
-      });
-    }
-  }, [teams, loading]);
+  // Teams are NOT auto-synced - they only persist when explicitly saved via Save/Load
+  // This allows users to build teams temporarily without polluting the database
 
   const initializeTeams = () => {
     const newTeams = [];
