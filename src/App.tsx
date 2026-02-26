@@ -203,12 +203,9 @@ function App() {
       const workingDraft = configs.find(c => c.id === WORKING_DRAFT_ID);
 
       if (workingDraft) {
-        // Load the working draft
-        const teamsWithSets = workingDraft.teams.map(team => ({
-          ...team,
-          lockedPlayers: new Set(team.lockedPlayers)
-        }));
-        setTeams(teamsWithSets);
+        // Remap player IDs to match current roster_config
+        const teamsWithRemappedPlayers = remapPlayerIds(workingDraft.teams);
+        setTeams(teamsWithRemappedPlayers);
         console.log('✅ Working draft loaded');
       } else {
         // No working draft exists, load default template
@@ -221,6 +218,44 @@ function App() {
     }
   };
 
+  // Remap player IDs from saved configs to match current roster_config IDs
+  const remapPlayerIds = (teams: any[]) => {
+    return teams.map(team => {
+      const remappedPlayers = team.players.map((player: Player) => {
+        // Find matching player in current roster by name
+        const currentPlayer = players.find(p => p.name === player.name);
+        if (currentPlayer) {
+          // Use current roster ID
+          return { ...player, id: currentPlayer.id, rating: currentPlayer.rating };
+        }
+        // Player not found in current roster, keep original
+        return player;
+      });
+
+      // Remap locked player IDs too
+      const lockedPlayerIds = Array.isArray(team.lockedPlayers)
+        ? team.lockedPlayers
+        : Array.from(team.lockedPlayers || []);
+
+      const remappedLockedPlayers = new Set(
+        lockedPlayerIds.map((oldId: string) => {
+          const oldPlayer = team.players.find((p: Player) => p.id === oldId);
+          if (oldPlayer) {
+            const currentPlayer = players.find(p => p.name === oldPlayer.name);
+            return currentPlayer ? currentPlayer.id : oldId;
+          }
+          return oldId;
+        })
+      );
+
+      return {
+        ...team,
+        players: remappedPlayers,
+        lockedPlayers: remappedLockedPlayers
+      };
+    });
+  };
+
   const loadDefaultTemplate = async () => {
     try {
       console.log('Loading default template:', DEFAULT_TEMPLATE_ID);
@@ -228,12 +263,9 @@ function App() {
       const defaultConfig = configs.find(c => c.id === DEFAULT_TEMPLATE_ID);
 
       if (defaultConfig) {
-        // Load the default template
-        const teamsWithSets = defaultConfig.teams.map(team => ({
-          ...team,
-          lockedPlayers: new Set(team.lockedPlayers)
-        }));
-        setTeams(teamsWithSets);
+        // Remap player IDs to match current roster_config
+        const teamsWithRemappedPlayers = remapPlayerIds(defaultConfig.teams);
+        setTeams(teamsWithRemappedPlayers);
         console.log('✅ Default template loaded with captains locked');
       } else {
         console.log('Default template not found, initializing empty teams');
@@ -641,12 +673,9 @@ function App() {
   };
 
   const loadConfiguration = (config: SavedConfiguration) => {
-    // Load teams with Sets converted back
-    const teamsWithSets = config.teams.map(team => ({
-      ...team,
-      lockedPlayers: new Set(team.lockedPlayers)
-    }));
-    setTeams(teamsWithSets);
+    // Remap player IDs to match current roster_config
+    const teamsWithRemappedPlayers = remapPlayerIds(config.teams);
+    setTeams(teamsWithRemappedPlayers);
 
     // Update players list to include all players from the configuration
     const allConfigPlayers = [
